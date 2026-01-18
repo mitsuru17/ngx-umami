@@ -28,7 +28,8 @@
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
             "karmaConfig": "projects/ngx-umami/karma.conf.js",
-            "tsConfig": "projects/ngx-umami/tsconfig.spec.json"
+            "tsConfig": "projects/ngx-umami/tsconfig.spec.json",
+            "polyfills": ["zone.js", "zone.js/testing"]
           }
         }
       }

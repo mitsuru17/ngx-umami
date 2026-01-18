@@ -23,6 +23,9 @@ dist/
 .claude/
 .git/
 .gitignore
-GEMINI.md
+CLAUDE.md
 karma.conf.js
 tsconfig.spec.json
+
+# Docs (internal)
+docs/

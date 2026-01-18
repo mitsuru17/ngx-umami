@@ -20,13 +20,14 @@ Thumbs.db
 .angular/
 
 # npm
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+pnpm-lock.yaml
 
 # Environment files
 .env
 .env.local
 
-# Gemini
-GEMINI.md
+# CLAUDE.md
+CLAUDE.md
+
+# Docs (internal)
+docs/

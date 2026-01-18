@@ -7,7 +7,7 @@
     "build:watch": "ng build ngx-umami --watch",
     "test": "ng test ngx-umami",
     "lint": "ng lint ngx-umami",
-    "publish:npm": "cd dist/ngx-umami && npm publish"
+    "publish": "cd dist/ngx-umami && pnpm publish"
   },
   "dependencies": {
     "@angular/common": "^19.0.0",
@@ -31,6 +31,7 @@
     "karma-jasmine": "^5.1.0",
     "karma-jasmine-html-reporter": "^2.1.0",
     "ng-packagr": "^19.0.0",
-    "typescript": "~5.6.0"
+    "typescript": "~5.6.0",
+    "zone.js": "^0.15.1"
   }
 }
