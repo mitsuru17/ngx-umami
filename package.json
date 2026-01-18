@@ -1,0 +1,27 @@
+{
+  "name": "ngx-umami-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "ng build ngx-umami",
+    "build:watch": "ng build ngx-umami --watch",
+    "test": "ng test ngx-umami",
+    "lint": "ng lint ngx-umami",
+    "publish:npm": "cd dist/ngx-umami && npm publish"
+  },
+  "dependencies": {
+    "@angular/common": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/router": "^19.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.6.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.0.0",
+    "@angular/cli": "^19.0.0",
+    "@angular/compiler": "^19.0.0",
+    "@angular/compiler-cli": "^19.0.0",
+    "ng-packagr": "^19.0.0",
+    "typescript": "~5.6.0"
+  }
+}
