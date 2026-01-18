@@ -1,12 +1,12 @@
 {
   "name": "ngx-umami",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Angular library for Umami Analytics - privacy-focused, lightweight analytics tracking",
   "license": "MIT",
   "author": "Eddye Rios",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eddyerios/ngx-umami.git"
+    "url": "https://github.com/mitsuru17/ngx-umami.git"
   },
   "keywords": [
     "angular",

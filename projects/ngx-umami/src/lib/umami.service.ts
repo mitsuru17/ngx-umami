@@ -69,9 +69,51 @@ export class UmamiService implements OnDestroy {
   }
 
   /**
+   * Validate the script URL
+   * @param src The script URL to validate
+   * @returns true if valid, false otherwise
+   */
+  private isValidScriptUrl(src: string): boolean {
+    try {
+      const url = new URL(src);
+
+      // Allow HTTPS always
+      if (url.protocol === 'https:') {
+        return true;
+      }
+
+      // Allow HTTP only for localhost/127.0.0.1 (development)
+      if (url.protocol === 'http:') {
+        const isLocalhost =
+          url.hostname === 'localhost' ||
+          url.hostname === '127.0.0.1' ||
+          url.hostname.endsWith('.localhost');
+        if (isLocalhost) {
+          return true;
+        }
+        console.warn(
+          '[ngx-umami] HTTP URLs are only allowed for localhost. Use HTTPS for production.'
+        );
+        return false;
+      }
+
+      console.warn(`[ngx-umami] Invalid protocol "${url.protocol}". Only HTTPS is allowed.`);
+      return false;
+    } catch {
+      console.error(`[ngx-umami] Invalid script URL: "${src}"`);
+      return false;
+    }
+  }
+
+  /**
    * Load the Umami tracker script
    */
   private loadScript(): void {
+    if (!this.isValidScriptUrl(this.config.src)) {
+      console.error('[ngx-umami] Script loading aborted due to invalid URL');
+      return;
+    }
+
     this.scriptElement = document.createElement('script');
     this.scriptElement.async = true;
     this.scriptElement.defer = true;

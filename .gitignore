@@ -19,6 +19,9 @@ Thumbs.db
 # Angular
 .angular/
 
+# Coverage reports
+coverage/
+
 # npm
 pnpm-lock.yaml
 
