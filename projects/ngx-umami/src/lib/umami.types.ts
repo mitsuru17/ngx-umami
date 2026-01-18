@@ -80,9 +80,7 @@ export interface UmamiPageViewPayload {
 /**
  * Session identification data
  */
-export interface UmamiIdentifyData {
-  [key: string]: string | number | boolean;
-}
+export type UmamiIdentifyData = Record<string, string | number | boolean>;
 
 /**
  * Global Umami tracker interface

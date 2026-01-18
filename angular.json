@@ -29,10 +29,28 @@
           "options": {
             "karmaConfig": "projects/ngx-umami/karma.conf.js",
             "tsConfig": "projects/ngx-umami/tsconfig.spec.json",
-            "polyfills": ["zone.js", "zone.js/testing"]
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ]
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/ngx-umami/**/*.ts",
+              "projects/ngx-umami/**/*.html"
+            ],
+            "eslintConfig": "projects/ngx-umami/eslint.config.js"
           }
         }
       }
     }
+  },
+  "cli": {
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   }
 }

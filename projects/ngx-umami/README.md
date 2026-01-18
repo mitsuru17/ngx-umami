@@ -24,8 +24,17 @@ Angular library for [Umami Analytics](https://umami.is/) - a privacy-focused, li
 ## Installation
 
 ```bash
+# Recommended
+pnpm add ngx-umami
+
+# Or with npm
 npm install ngx-umami
+
+# Or with yarn
+yarn add ngx-umami
 ```
+
+> **Note:** We recommend using [pnpm](https://pnpm.io/) for faster installs and better disk space efficiency.
 
 ## Quick Start
 

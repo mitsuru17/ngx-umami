@@ -44,7 +44,8 @@ export class UmamiTrackDirective {
   /**
    * DOM event to listen for (default: 'click')
    */
-  @Input() umamiTrackOn: 'click' | 'focus' | 'blur' | 'mouseenter' | 'mouseleave' | 'submit' = 'click';
+  @Input() umamiTrackOn: 'click' | 'focus' | 'blur' | 'mouseenter' | 'mouseleave' | 'submit' =
+    'click';
 
   @HostListener('click')
   onClick(): void {

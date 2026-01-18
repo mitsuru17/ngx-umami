@@ -1,8 +1,7 @@
-import { Injectable, Inject, PLATFORM_ID, OnDestroy } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID, OnDestroy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { UMAMI_CONFIG } from './umami.token';
 import {
-  UmamiConfig,
   UmamiEventData,
   UmamiPageViewPayload,
   UmamiIdentifyData,
@@ -28,15 +27,12 @@ import {
   providedIn: 'root',
 })
 export class UmamiService implements OnDestroy {
-  private readonly isBrowser: boolean;
+  private readonly config = inject(UMAMI_CONFIG);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private scriptElement: HTMLScriptElement | null = null;
   private initialized = false;
 
-  constructor(
-    @Inject(UMAMI_CONFIG) private config: UmamiConfig,
-    @Inject(PLATFORM_ID) platformId: object
-  ) {
-    this.isBrowser = isPlatformBrowser(platformId);
+  constructor() {
     this.init();
   }
 
@@ -63,9 +59,7 @@ export class UmamiService implements OnDestroy {
     if (this.config.domains?.length) {
       const currentDomain = window.location.hostname;
       if (!this.config.domains.includes(currentDomain)) {
-        console.debug(
-          `[ngx-umami] Current domain "${currentDomain}" not in allowed domains`
-        );
+        console.debug(`[ngx-umami] Current domain "${currentDomain}" not in allowed domains`);
         return;
       }
     }

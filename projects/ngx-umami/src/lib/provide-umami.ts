@@ -1,8 +1,4 @@
-import {
-  EnvironmentProviders,
-  makeEnvironmentProviders,
-  Provider,
-} from '@angular/core';
+import { EnvironmentProviders, makeEnvironmentProviders, Provider } from '@angular/core';
 import { UMAMI_CONFIG } from './umami.token';
 import { UmamiConfig } from './umami.types';
 import { UmamiService } from './umami.service';
