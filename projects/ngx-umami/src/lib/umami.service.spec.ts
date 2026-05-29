@@ -45,25 +45,22 @@ describe('UmamiService', () => {
       const consoleSpy = spyOn(console, 'error');
       service = createService({ src: 'https://analytics.example.com/script.js' });
 
-      expect(consoleSpy).not.toHaveBeenCalled();
       const script = document.querySelector('script[data-website-id="test-website-id"]');
       expect(script).toBeTruthy();
+      // Only URL validation errors should not have been called (onerror from failed network load is expected in tests)
+      expect(consoleSpy).not.toHaveBeenCalledWith('[ngx-umami] Script loading aborted due to invalid URL');
     });
 
     it('should load script with localhost HTTP URL', () => {
-      const consoleSpy = spyOn(console, 'error');
       service = createService({ src: 'http://localhost:3000/script.js' });
 
-      expect(consoleSpy).not.toHaveBeenCalled();
       const script = document.querySelector('script[data-website-id="test-website-id"]');
       expect(script).toBeTruthy();
     });
 
     it('should load script with 127.0.0.1 HTTP URL', () => {
-      const consoleSpy = spyOn(console, 'error');
       service = createService({ src: 'http://127.0.0.1:3000/script.js' });
 
-      expect(consoleSpy).not.toHaveBeenCalled();
       const script = document.querySelector('script[data-website-id="test-website-id"]');
       expect(script).toBeTruthy();
     });
@@ -122,10 +119,8 @@ describe('UmamiService', () => {
     });
 
     it('should allow subdomain.localhost HTTP URLs', () => {
-      const consoleSpy = spyOn(console, 'error');
       service = createService({ src: 'http://app.localhost:3000/script.js' });
 
-      expect(consoleSpy).not.toHaveBeenCalled();
       const script = document.querySelector('script[data-website-id="test-website-id"]');
       expect(script).toBeTruthy();
     });
@@ -279,7 +274,7 @@ describe('UmamiService', () => {
   });
 
   describe('isAvailable', () => {
-    it('should return false when tracker is not available', () => {
+    it('should return false when script has not loaded yet', () => {
       service = createService({ src: 'https://analytics.example.com/script.js' });
       expect(service.isAvailable()).toBeFalse();
     });
@@ -290,6 +285,15 @@ describe('UmamiService', () => {
         enabled: false,
       });
       expect(service.isAvailable()).toBeFalse();
+    });
+
+    it('should return true when script loaded and tracker is available', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      (window as { umami?: unknown }).umami = { track: jasmine.createSpy(), identify: jasmine.createSpy() };
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+      expect(service.isAvailable()).toBeTrue();
+      delete (window as { umami?: unknown }).umami;
     });
   });
 
@@ -327,6 +331,95 @@ describe('UmamiService', () => {
     });
   });
 
+  describe('event queue', () => {
+    let mockTracker: { track: jasmine.Spy; identify: jasmine.Spy };
+
+    beforeEach(() => {
+      mockTracker = {
+        track: jasmine.createSpy('track'),
+        identify: jasmine.createSpy('identify'),
+      };
+    });
+
+    afterEach(() => {
+      delete (window as { umami?: unknown }).umami;
+    });
+
+    it('should queue trackEvent calls made before script loads and flush on load', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('queued_event', { key: 'value' });
+      expect(mockTracker.track).not.toHaveBeenCalled();
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.track).toHaveBeenCalledWith('queued_event', { key: 'value' });
+    });
+
+    it('should queue trackPageView calls made before script loads and flush on load', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackPageView({ url: '/queued-page' });
+      expect(mockTracker.track).not.toHaveBeenCalled();
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.track).toHaveBeenCalledWith({ url: '/queued-page' });
+    });
+
+    it('should queue identify calls made before script loads and flush on load', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.identify('user-123', { plan: 'premium' });
+      expect(mockTracker.identify).not.toHaveBeenCalled();
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.identify).toHaveBeenCalledWith('user-123', { plan: 'premium' });
+    });
+
+    it('should flush multiple queued events in order', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('first');
+      service.trackEvent('second');
+      service.trackEvent('third');
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.track.calls.count()).toBe(3);
+      expect(mockTracker.track.calls.argsFor(0)).toEqual(['first']);
+      expect(mockTracker.track.calls.argsFor(1)).toEqual(['second']);
+      expect(mockTracker.track.calls.argsFor(2)).toEqual(['third']);
+    });
+
+    it('should run trackEvent immediately after script has loaded', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      (window as { umami?: unknown }).umami = mockTracker;
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+
+      service.trackEvent('immediate_event');
+      expect(mockTracker.track).toHaveBeenCalledWith('immediate_event');
+    });
+
+    it('should log error when script fails to load', () => {
+      const consoleErrorSpy = spyOn(console, 'error');
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onerror?.(new Event('error'));
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[ngx-umami] Failed to load script from:',
+        'https://analytics.example.com/script.js'
+      );
+    });
+  });
+
   describe('tracking methods with mock tracker', () => {
     let mockTracker: {
       track: jasmine.Spy;
@@ -340,6 +433,9 @@ describe('UmamiService', () => {
         identify: jasmine.createSpy('identify'),
       };
       (window as { umami?: unknown }).umami = mockTracker;
+      // Simulate script loaded so calls execute immediately
+      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      script.onload?.(new Event('load'));
     });
 
     afterEach(() => {

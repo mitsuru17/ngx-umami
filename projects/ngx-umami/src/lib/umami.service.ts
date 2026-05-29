@@ -31,6 +31,8 @@ export class UmamiService implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private scriptElement: HTMLScriptElement | null = null;
   private initialized = false;
+  private scriptLoaded = false;
+  private eventQueue: Array<() => void> = [];
 
   constructor() {
     this.init();
@@ -149,7 +151,31 @@ export class UmamiService implements OnDestroy {
       this.scriptElement.dataset['hostUrl'] = this.config.hostUrl;
     }
 
+    this.scriptElement.onload = () => {
+      this.scriptLoaded = true;
+      this.flushQueue();
+    };
+
+    this.scriptElement.onerror = () => {
+      console.error('[ngx-umami] Failed to load script from:', this.config.src);
+    };
+
     document.head.appendChild(this.scriptElement);
+  }
+
+  private flushQueue(): void {
+    const queue = this.eventQueue.splice(0);
+    for (const fn of queue) {
+      fn();
+    }
+  }
+
+  private enqueueOrRun(fn: () => void): void {
+    if (this.scriptLoaded) {
+      fn();
+    } else {
+      this.eventQueue.push(fn);
+    }
   }
 
   /**
@@ -166,7 +192,7 @@ export class UmamiService implements OnDestroy {
    * Check if tracking is available
    */
   isAvailable(): boolean {
-    return this.isBrowser && this.initialized && !!this.getTracker();
+    return this.initialized && this.scriptLoaded && !!window.umami;
   }
 
   /**
@@ -184,16 +210,19 @@ export class UmamiService implements OnDestroy {
    * ```
    */
   trackPageView(payload?: UmamiPageViewPayload): void {
-    const tracker = this.getTracker();
-    if (!tracker) {
+    if (!this.initialized) {
       return;
     }
 
-    if (payload) {
-      tracker.track(payload);
-    } else {
-      tracker.track();
-    }
+    this.enqueueOrRun(() => {
+      const tracker = this.getTracker();
+      if (!tracker) return;
+      if (payload) {
+        tracker.track(payload);
+      } else {
+        tracker.track();
+      }
+    });
   }
 
   /**
@@ -216,16 +245,19 @@ export class UmamiService implements OnDestroy {
    * ```
    */
   trackEvent(eventName: string, eventData?: UmamiEventData): void {
-    const tracker = this.getTracker();
-    if (!tracker) {
+    if (!this.initialized) {
       return;
     }
 
-    if (eventData) {
-      tracker.track(eventName, eventData);
-    } else {
-      tracker.track(eventName);
-    }
+    this.enqueueOrRun(() => {
+      const tracker = this.getTracker();
+      if (!tracker) return;
+      if (eventData) {
+        tracker.track(eventName, eventData);
+      } else {
+        tracker.track(eventName);
+      }
+    });
   }
 
   /**
@@ -247,20 +279,23 @@ export class UmamiService implements OnDestroy {
    * ```
    */
   identify(sessionIdOrData: string | UmamiIdentifyData, sessionData?: UmamiIdentifyData): void {
-    const tracker = this.getTracker();
-    if (!tracker) {
+    if (!this.initialized) {
       return;
     }
 
-    if (typeof sessionIdOrData === 'string') {
-      if (sessionData) {
-        tracker.identify(sessionIdOrData, sessionData);
+    this.enqueueOrRun(() => {
+      const tracker = this.getTracker();
+      if (!tracker) return;
+      if (typeof sessionIdOrData === 'string') {
+        if (sessionData) {
+          tracker.identify(sessionIdOrData, sessionData);
+        } else {
+          tracker.identify(sessionIdOrData);
+        }
       } else {
         tracker.identify(sessionIdOrData);
       }
-    } else {
-      tracker.identify(sessionIdOrData);
-    }
+    });
   }
 
   /**
