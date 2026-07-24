@@ -1,4 +1,9 @@
-import { EnvironmentProviders, makeEnvironmentProviders, Provider } from '@angular/core';
+import {
+  EnvironmentProviders,
+  inject,
+  makeEnvironmentProviders,
+  provideEnvironmentInitializer,
+} from '@angular/core';
 import { UMAMI_CONFIG } from './umami.token';
 import { UmamiConfig } from './umami.types';
 import { UmamiService } from './umami.service';
@@ -40,15 +45,15 @@ import { UmamiService } from './umami.service';
  * ```
  */
 export function provideUmami(config: UmamiConfig): EnvironmentProviders {
-  const providers: Provider[] = [
+  return makeEnvironmentProviders([
     {
       provide: UMAMI_CONFIG,
       useValue: config,
     },
     UmamiService,
-  ];
-
-  return makeEnvironmentProviders(providers);
+    // Instantiate eagerly so the script loads even if nothing injects the service
+    provideEnvironmentInitializer(() => inject(UmamiService)),
+  ]);
 }
 
 /**
@@ -83,14 +88,14 @@ export function provideUmamiWithFactory(
   configFactory: (...deps: unknown[]) => UmamiConfig,
   deps: unknown[] = []
 ): EnvironmentProviders {
-  const providers: Provider[] = [
+  return makeEnvironmentProviders([
     {
       provide: UMAMI_CONFIG,
       useFactory: configFactory,
       deps,
     },
     UmamiService,
-  ];
-
-  return makeEnvironmentProviders(providers);
+    // Instantiate eagerly so the script loads even if nothing injects the service
+    provideEnvironmentInitializer(() => inject(UmamiService)),
+  ]);
 }

@@ -57,6 +57,12 @@ export interface UmamiConfig {
    * Useful when using a proxy
    */
   hostUrl?: string;
+
+  /**
+   * Called when the tracker script fails to load
+   * Useful for reporting to an error tracking service
+   */
+  onScriptError?: (src: string) => void;
 }
 
 /**

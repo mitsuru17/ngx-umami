@@ -121,7 +121,10 @@ provideUmami({
   tag: 'production',          // Tag for filtering in dashboard
   excludeSearch: false,       // Exclude URL search params
   excludeHash: false,         // Exclude URL hash
-  hostUrl: 'https://proxy.example.com'  // Custom data endpoint
+  hostUrl: 'https://proxy.example.com',  // Custom data endpoint
+  onScriptError: (src) => {   // Called if the tracker script fails to load
+    console.warn(`Umami failed to load from ${src}`);
+  }
 })
 ```
 
@@ -192,10 +195,15 @@ if (umami.isAvailable()) {
 
 #### `disable()`
 
-Disable tracking programmatically.
+Disable tracking programmatically. Sets the `umami.disabled` flag in
+localStorage (the mechanism Umami itself honors), so the opt-out persists
+across page loads until the flag is removed.
 
 ```typescript
 umami.disable();
+
+// To re-enable tracking later:
+localStorage.removeItem('umami.disabled');
 ```
 
 ### UmamiTrackDirective

@@ -4,7 +4,7 @@ import {
   inject,
   makeEnvironmentProviders,
   DestroyRef,
-  APP_INITIALIZER,
+  provideAppInitializer,
 } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -39,13 +39,6 @@ export class UmamiRouterTracker {
 }
 
 /**
- * Factory function to initialize router tracking
- */
-function initializeRouterTracking(tracker: UmamiRouterTracker): () => void {
-  return () => tracker.init();
-}
-
-/**
  * Enable automatic page view tracking on route changes
  *
  * Use this with provideUmami() when you want to track SPA navigation
@@ -75,11 +68,6 @@ function initializeRouterTracking(tracker: UmamiRouterTracker): () => void {
 export function withRouterTracking(): EnvironmentProviders {
   return makeEnvironmentProviders([
     UmamiRouterTracker,
-    {
-      provide: APP_INITIALIZER,
-      useFactory: initializeRouterTracking,
-      deps: [UmamiRouterTracker],
-      multi: true,
-    },
+    provideAppInitializer(() => inject(UmamiRouterTracker).init()),
   ]);
 }

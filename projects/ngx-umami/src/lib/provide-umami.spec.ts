@@ -50,6 +50,23 @@ describe('provideUmami', () => {
     expect(service instanceof UmamiService).toBeTrue();
   });
 
+  it('should instantiate UmamiService eagerly without anyone injecting it', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideUmami({
+          websiteId: 'eager-id',
+          src: 'https://analytics.example.com/script.js',
+        }),
+      ],
+    });
+
+    // Trigger environment injector creation without touching UmamiService directly
+    TestBed.inject(UMAMI_CONFIG);
+
+    const script = document.querySelector('script[data-website-id="eager-id"]');
+    expect(script).toBeTruthy();
+  });
+
   it('should provide config with all optional properties', () => {
     const config: UmamiConfig = {
       websiteId: 'test-id',

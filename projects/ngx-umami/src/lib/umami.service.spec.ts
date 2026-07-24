@@ -48,7 +48,9 @@ describe('UmamiService', () => {
       const script = document.querySelector('script[data-website-id="test-website-id"]');
       expect(script).toBeTruthy();
       // Only URL validation errors should not have been called (onerror from failed network load is expected in tests)
-      expect(consoleSpy).not.toHaveBeenCalledWith('[ngx-umami] Script loading aborted due to invalid URL');
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        '[ngx-umami] Script loading aborted due to invalid URL'
+      );
     });
 
     it('should load script with localhost HTTP URL', () => {
@@ -118,6 +120,18 @@ describe('UmamiService', () => {
       expect(script).toBeFalsy();
     });
 
+    it('should not enqueue events when script URL is invalid', () => {
+      spyOn(console, 'error');
+      service = createService({ src: 'not-a-valid-url' });
+
+      service.trackEvent('event_after_invalid_url');
+      service.trackPageView();
+      service.identify('user-123');
+
+      const queue = (service as unknown as { eventQueue: unknown[] }).eventQueue;
+      expect(queue.length).toBe(0);
+    });
+
     it('should allow subdomain.localhost HTTP URLs', () => {
       service = createService({ src: 'http://app.localhost:3000/script.js' });
 
@@ -159,6 +173,99 @@ describe('UmamiService', () => {
         value: originalDoNotTrack,
         configurable: true,
       });
+    });
+  });
+
+  describe('doNotTrack with "yes" value', () => {
+    it('should not load script when browser reports DNT as "yes"', () => {
+      const originalDoNotTrack = navigator.doNotTrack;
+      Object.defineProperty(navigator, 'doNotTrack', { value: 'yes', configurable: true });
+
+      const consoleDebugSpy = spyOn(console, 'debug');
+      service = createService({
+        src: 'https://analytics.example.com/script.js',
+        doNotTrack: true,
+      });
+
+      expect(consoleDebugSpy).toHaveBeenCalledWith(
+        '[ngx-umami] Do Not Track is enabled, tracking disabled'
+      );
+      const script = document.querySelector('script[data-website-id="test-website-id"]');
+      expect(script).toBeFalsy();
+
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: originalDoNotTrack,
+        configurable: true,
+      });
+    });
+  });
+
+  describe('duplicate script guard', () => {
+    function appendExistingScript(): HTMLScriptElement {
+      const existing = document.createElement('script');
+      existing.dataset['websiteId'] = 'test-website-id';
+      document.head.appendChild(existing);
+      return existing;
+    }
+
+    it('should not inject a second script when one already exists for the website id', () => {
+      appendExistingScript();
+
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+
+      const scripts = document.querySelectorAll('script[data-website-id="test-website-id"]');
+      expect(scripts.length).toBe(1);
+    });
+
+    it('should flush queued events immediately when tracker already exists', () => {
+      const mockTracker = {
+        track: jasmine.createSpy('track'),
+        identify: jasmine.createSpy('identify'),
+      };
+      appendExistingScript();
+      (window as { umami?: unknown }).umami = mockTracker;
+
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('reused_script_event');
+
+      expect(mockTracker.track).toHaveBeenCalledWith('reused_script_event');
+      delete (window as { umami?: unknown }).umami;
+    });
+
+    it('should wait for the existing script to load before flushing', () => {
+      const mockTracker = {
+        track: jasmine.createSpy('track'),
+        identify: jasmine.createSpy('identify'),
+      };
+      const existing = appendExistingScript();
+
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('queued_on_existing');
+      expect(mockTracker.track).not.toHaveBeenCalled();
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      existing.dispatchEvent(new Event('load'));
+
+      expect(mockTracker.track).toHaveBeenCalledWith('queued_on_existing');
+      delete (window as { umami?: unknown }).umami;
+    });
+  });
+
+  describe('onScriptError callback', () => {
+    it('should invoke onScriptError with the script src when loading fails', () => {
+      spyOn(console, 'error');
+      const onScriptError = jasmine.createSpy('onScriptError');
+      service = createService({
+        src: 'https://analytics.example.com/script.js',
+        onScriptError,
+      });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      script.onerror?.(new Event('error'));
+
+      expect(onScriptError).toHaveBeenCalledWith('https://analytics.example.com/script.js');
     });
   });
 
@@ -289,8 +396,13 @@ describe('UmamiService', () => {
 
     it('should return true when script loaded and tracker is available', () => {
       service = createService({ src: 'https://analytics.example.com/script.js' });
-      (window as { umami?: unknown }).umami = { track: jasmine.createSpy(), identify: jasmine.createSpy() };
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      (window as { umami?: unknown }).umami = {
+        track: jasmine.createSpy(),
+        identify: jasmine.createSpy(),
+      };
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
       expect(service.isAvailable()).toBeTrue();
       delete (window as { umami?: unknown }).umami;
@@ -351,7 +463,9 @@ describe('UmamiService', () => {
       expect(mockTracker.track).not.toHaveBeenCalled();
 
       (window as { umami?: unknown }).umami = mockTracker;
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
       expect(mockTracker.track).toHaveBeenCalledWith('queued_event', { key: 'value' });
@@ -363,7 +477,9 @@ describe('UmamiService', () => {
       expect(mockTracker.track).not.toHaveBeenCalled();
 
       (window as { umami?: unknown }).umami = mockTracker;
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
       expect(mockTracker.track).toHaveBeenCalledWith({ url: '/queued-page' });
@@ -375,7 +491,9 @@ describe('UmamiService', () => {
       expect(mockTracker.identify).not.toHaveBeenCalled();
 
       (window as { umami?: unknown }).umami = mockTracker;
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
       expect(mockTracker.identify).toHaveBeenCalledWith('user-123', { plan: 'premium' });
@@ -388,7 +506,9 @@ describe('UmamiService', () => {
       service.trackEvent('third');
 
       (window as { umami?: unknown }).umami = mockTracker;
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
       expect(mockTracker.track.calls.count()).toBe(3);
@@ -400,7 +520,9 @@ describe('UmamiService', () => {
     it('should run trackEvent immediately after script has loaded', () => {
       service = createService({ src: 'https://analytics.example.com/script.js' });
       (window as { umami?: unknown }).umami = mockTracker;
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
       service.trackEvent('immediate_event');
@@ -410,13 +532,51 @@ describe('UmamiService', () => {
     it('should log error when script fails to load', () => {
       const consoleErrorSpy = spyOn(console, 'error');
       service = createService({ src: 'https://analytics.example.com/script.js' });
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onerror?.(new Event('error'));
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[ngx-umami] Failed to load script from:',
         'https://analytics.example.com/script.js'
       );
+    });
+
+    it('should discard queued events when script fails to load', () => {
+      spyOn(console, 'error');
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('queued_before_failure');
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      script.onerror?.(new Event('error'));
+
+      // Even if a tracker becomes available later, the discarded queue must not flush.
+      (window as { umami?: unknown }).umami = mockTracker;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.track).not.toHaveBeenCalled();
+    });
+
+    it('should not enqueue or run new events after script has failed to load', () => {
+      spyOn(console, 'error');
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      script.onerror?.(new Event('error'));
+
+      service.trackEvent('after_failure');
+      service.trackPageView();
+      service.identify('user-123');
+
+      (window as { umami?: unknown }).umami = mockTracker;
+      script.onload?.(new Event('load'));
+
+      expect(mockTracker.track).not.toHaveBeenCalled();
+      expect(mockTracker.identify).not.toHaveBeenCalled();
     });
   });
 
@@ -434,7 +594,9 @@ describe('UmamiService', () => {
       };
       (window as { umami?: unknown }).umami = mockTracker;
       // Simulate script loaded so calls execute immediately
-      const script = document.querySelector('script[data-website-id="test-website-id"]') as HTMLScriptElement;
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
     });
 
@@ -479,6 +641,26 @@ describe('UmamiService', () => {
   });
 
   describe('disable', () => {
+    afterEach(() => {
+      localStorage.removeItem('umami.disabled');
+    });
+
+    it('should set the umami.disabled flag in localStorage', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.disable();
+      expect(localStorage.getItem('umami.disabled')).toBe('1');
+    });
+
+    it('should clear the event queue when disabled', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+      service.trackEvent('queued_event');
+
+      service.disable();
+
+      const queue = (service as unknown as { eventQueue: unknown[] }).eventQueue;
+      expect(queue.length).toBe(0);
+    });
+
     it('should remove script element when disabled', () => {
       service = createService({ src: 'https://analytics.example.com/script.js' });
       let script = document.querySelector('script[data-website-id="test-website-id"]');
@@ -498,13 +680,21 @@ describe('UmamiService', () => {
   });
 
   describe('ngOnDestroy', () => {
-    it('should call disable on destroy', () => {
+    it('should remove script element on destroy', () => {
       service = createService({ src: 'https://analytics.example.com/script.js' });
-      const disableSpy = spyOn(service, 'disable');
 
       service.ngOnDestroy();
 
-      expect(disableSpy).toHaveBeenCalled();
+      const script = document.querySelector('script[data-website-id="test-website-id"]');
+      expect(script).toBeFalsy();
+    });
+
+    it('should not persist the umami.disabled flag on destroy', () => {
+      service = createService({ src: 'https://analytics.example.com/script.js' });
+
+      service.ngOnDestroy();
+
+      expect(localStorage.getItem('umami.disabled')).toBeNull();
     });
   });
 });

@@ -32,7 +32,8 @@ export class UmamiService implements OnDestroy {
   private scriptElement: HTMLScriptElement | null = null;
   private initialized = false;
   private scriptLoaded = false;
-  private eventQueue: Array<() => void> = [];
+  private scriptFailed = false;
+  private eventQueue: (() => void)[] = [];
 
   constructor() {
     this.init();
@@ -52,7 +53,7 @@ export class UmamiService implements OnDestroy {
     }
 
     // Check Do Not Track setting
-    if (this.config.doNotTrack && navigator.doNotTrack === '1') {
+    if (this.config.doNotTrack && this.isDoNotTrackEnabled()) {
       console.debug('[ngx-umami] Do Not Track is enabled, tracking disabled');
       return;
     }
@@ -68,6 +69,15 @@ export class UmamiService implements OnDestroy {
 
     this.loadScript();
     this.initialized = true;
+  }
+
+  /**
+   * Check the browser's Do Not Track setting
+   * Browsers report it as '1' or 'yes', on navigator or window
+   */
+  private isDoNotTrackEnabled(): boolean {
+    const dnt = navigator.doNotTrack ?? (window as Window & { doNotTrack?: string }).doNotTrack;
+    return dnt === '1' || dnt === 'yes';
   }
 
   /**
@@ -113,6 +123,26 @@ export class UmamiService implements OnDestroy {
   private loadScript(): void {
     if (!this.isValidScriptUrl(this.config.src)) {
       console.error('[ngx-umami] Script loading aborted due to invalid URL');
+      this.scriptFailed = true;
+      return;
+    }
+
+    // Reuse an already injected script (double bootstrap, HMR) instead of adding a duplicate
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[data-website-id="${this.config.websiteId}"]`
+    );
+    if (existing) {
+      this.scriptElement = existing;
+      if (window.umami) {
+        this.scriptLoaded = true;
+        this.flushQueue();
+      } else {
+        existing.addEventListener('load', () => {
+          this.scriptLoaded = true;
+          this.flushQueue();
+        });
+        existing.addEventListener('error', () => this.handleScriptError());
+      }
       return;
     }
 
@@ -156,11 +186,16 @@ export class UmamiService implements OnDestroy {
       this.flushQueue();
     };
 
-    this.scriptElement.onerror = () => {
-      console.error('[ngx-umami] Failed to load script from:', this.config.src);
-    };
+    this.scriptElement.onerror = () => this.handleScriptError();
 
     document.head.appendChild(this.scriptElement);
+  }
+
+  private handleScriptError(): void {
+    console.error('[ngx-umami] Failed to load script from:', this.config.src);
+    this.scriptFailed = true;
+    this.eventQueue = [];
+    this.config.onScriptError?.(this.config.src);
   }
 
   private flushQueue(): void {
@@ -171,6 +206,9 @@ export class UmamiService implements OnDestroy {
   }
 
   private enqueueOrRun(fn: () => void): void {
+    if (this.scriptFailed) {
+      return;
+    }
     if (this.scriptLoaded) {
       fn();
     } else {
@@ -192,7 +230,7 @@ export class UmamiService implements OnDestroy {
    * Check if tracking is available
    */
   isAvailable(): boolean {
-    return this.initialized && this.scriptLoaded && !!window.umami;
+    return this.initialized && this.scriptLoaded && !!this.getTracker();
   }
 
   /**
@@ -301,16 +339,33 @@ export class UmamiService implements OnDestroy {
   /**
    * Disable tracking programmatically
    * Useful for development or when user opts out
+   *
+   * Sets the `umami.disabled` flag in localStorage (the mechanism Umami itself
+   * honors), since removing the script tag alone does not stop an already
+   * loaded tracker.
    */
   disable(): void {
-    if (this.scriptElement && this.isBrowser) {
-      this.scriptElement.remove();
-      this.scriptElement = null;
-      this.initialized = false;
+    if (!this.isBrowser) {
+      return;
     }
+    try {
+      localStorage.setItem('umami.disabled', '1');
+    } catch {
+      // localStorage may be unavailable (e.g. blocked by browser settings)
+    }
+    this.cleanup();
+  }
+
+  private cleanup(): void {
+    this.scriptElement?.remove();
+    this.scriptElement = null;
+    this.initialized = false;
+    this.eventQueue = [];
   }
 
   ngOnDestroy(): void {
-    this.disable();
+    if (this.isBrowser) {
+      this.cleanup();
+    }
   }
 }

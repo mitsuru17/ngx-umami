@@ -114,7 +114,7 @@ describe('withRouterTracking', () => {
     expect(tracker).toBeTruthy();
   });
 
-  it('should initialize router tracking via APP_INITIALIZER', fakeAsync(() => {
+  it('should initialize router tracking via app initializer', fakeAsync(() => {
     const router = TestBed.inject(Router);
 
     router.navigate(['/about']);
