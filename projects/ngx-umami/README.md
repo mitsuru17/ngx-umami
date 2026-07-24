@@ -3,6 +3,9 @@
 Angular library for [Umami Analytics](https://umami.is/) - a privacy-focused, lightweight analytics platform.
 
 [![npm version](https://badge.fury.io/js/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
+[![npm downloads](https://img.shields.io/npm/dm/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/ngx-umami)](https://bundlephobia.com/package/ngx-umami)
+[![Angular](https://img.shields.io/badge/Angular-17--21-dd0031.svg)](https://angular.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
@@ -34,7 +37,7 @@ npm install ngx-umami
 yarn add ngx-umami
 ```
 
-> **Note:** We recommend using [pnpm](https://pnpm.io/) for faster installs and better disk space efficiency.
+> **Note:** We recommend using [pnpm](https://pnpm.io/) for faster installs, better disk space efficiency, and improved security through strict, non-flat `node_modules` isolation that prevents packages from accessing dependencies they don't explicitly declare (phantom dependencies).
 
 ## Quick Start
 
