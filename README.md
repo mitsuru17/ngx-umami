@@ -1,61 +1,111 @@
 # ngx-umami
 
-Angular library for [Umami Analytics](https://umami.is/) - privacy-focused, lightweight analytics tracking for Angular applications.
+Angular library for [Umami Analytics](https://umami.is/) - a privacy-focused, lightweight analytics platform.
+
+[![npm version](https://badge.fury.io/js/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
+[![npm downloads](https://img.shields.io/npm/dm/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/ngx-umami)](https://bundlephobia.com/package/ngx-umami)
+[![Angular](https://img.shields.io/badge/Angular-17--21-dd0031.svg)](https://angular.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- Easy integration with Angular 17+
-- SSR compatible (Angular Universal)
-- Automatic page view tracking with Angular Router
-- Custom event tracking
-- User session identification
-- Template directive for declarative tracking
-- Respects Do Not Track browser setting
-- Domain restrictions support
-- Full TypeScript support
+- 🚀 **Easy Setup** - Simple standalone configuration with `provideUmami()`
+- 📊 **Event Tracking** - Track custom events with optional data payloads
+- 🔄 **Router Integration** - Automatic page view tracking on route changes
+- 🎯 **Directive** - Declarative event tracking with `umamiTrack` directive
+- 🔒 **Privacy First** - Respects Do Not Track, GDPR compliant
+- 🌐 **SSR Compatible** - Works with Angular Universal/SSR
+- 📦 **Tree-shakeable** - Only includes what you use
+
+## Compatibility
+
+| Angular Version | ngx-umami Version |
+|-----------------|-------------------|
+| 17.x - 21.x     | 1.x               |
 
 ## Installation
 
 ```bash
+# Recommended
+pnpm add ngx-umami
+
+# Or with npm
 npm install ngx-umami
+
+# Or with yarn
+yarn add ngx-umami
 ```
+
+> **Note:** We recommend using [pnpm](https://pnpm.io/) for faster installs, better disk space efficiency, and improved security through strict, non-flat `node_modules` isolation that prevents packages from accessing dependencies they don't explicitly declare (phantom dependencies).
 
 ## Quick Start
 
-### 1. Configure the provider
+### 1. Configure in your app
 
 ```typescript
 // app.config.ts
 import { ApplicationConfig } from '@angular/core';
-import { provideUmami } from 'ngx-umami';
+import { provideRouter } from '@angular/router';
+import { provideUmami, withRouterTracking } from 'ngx-umami';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideRouter(routes),
     provideUmami({
       websiteId: 'your-website-id',
-      src: 'https://analytics.example.com/script.js'
-    })
+      src: 'https://analytics.yourdomain.com/script.js'
+    }),
+    // Optional: Enable automatic page view tracking on route changes
+    withRouterTracking()
   ]
 };
 ```
 
-### 2. Track events in your components
+### 2. Track events in components
 
 ```typescript
 import { Component } from '@angular/core';
 import { injectUmami } from 'ngx-umami';
 
 @Component({
-  selector: 'app-example',
-  template: `<button (click)="onSignup()">Sign Up</button>`
+  selector: 'app-checkout',
+  template: `<button (click)="onPurchase()">Buy Now</button>`
 })
-export class ExampleComponent {
+export class CheckoutComponent {
   private umami = injectUmami();
 
-  onSignup() {
-    this.umami.trackEvent('signup_click', { plan: 'premium' });
+  onPurchase() {
+    this.umami.trackEvent('purchase', {
+      product: 'Premium Plan',
+      price: 99.99,
+      currency: 'USD'
+    });
   }
 }
+```
+
+### 3. Or use the directive
+
+```typescript
+import { Component } from '@angular/core';
+import { UmamiTrackDirective } from 'ngx-umami';
+
+@Component({
+  selector: 'app-signup',
+  standalone: true,
+  imports: [UmamiTrackDirective],
+  template: `
+    <button umamiTrack="signup_click">Sign Up</button>
+
+    <button
+      umamiTrack="cta_click"
+      [umamiTrackData]="{ location: 'header', variant: 'blue' }">
+      Get Started
+    </button>
+  `
+})
+export class SignupComponent {}
 ```
 
 ## Configuration Options
@@ -63,8 +113,8 @@ export class ExampleComponent {
 ```typescript
 provideUmami({
   // Required
-  websiteId: 'your-website-id',
-  src: 'https://analytics.example.com/script.js',
+  websiteId: 'your-website-id',  // From Umami dashboard
+  src: 'https://analytics.example.com/script.js',  // Your Umami script URL
 
   // Optional
   enabled: true,              // Enable/disable tracking (default: true)
@@ -74,51 +124,11 @@ provideUmami({
   tag: 'production',          // Tag for filtering in dashboard
   excludeSearch: false,       // Exclude URL search params
   excludeHash: false,         // Exclude URL hash
-  hostUrl: 'https://...'      // Custom host URL for proxy setups
-});
-```
-
-### Factory Configuration
-
-Use `provideUmamiWithFactory` when configuration depends on other services:
-
-```typescript
-import { provideUmamiWithFactory } from 'ngx-umami';
-import { ConfigService } from './config.service';
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideUmamiWithFactory(
-      (configService: ConfigService) => ({
-        websiteId: configService.umamiWebsiteId,
-        src: configService.umamiSrc,
-        enabled: configService.isProduction
-      }),
-      [ConfigService]
-    )
-  ]
-};
-```
-
-## Router Tracking
-
-Enable automatic page view tracking on route changes:
-
-```typescript
-import { provideRouter } from '@angular/router';
-import { provideUmami, withRouterTracking } from 'ngx-umami';
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideRouter(routes),
-    provideUmami({
-      websiteId: 'your-website-id',
-      src: 'https://analytics.example.com/script.js',
-      autoTrack: false // Disable auto tracking since router handles it
-    }),
-    withRouterTracking()
-  ]
-};
+  hostUrl: 'https://proxy.example.com',  // Custom data endpoint
+  onScriptError: (src) => {   // Called if the tracker script fails to load
+    console.warn(`Umami failed to load from ${src}`);
+  }
+})
 ```
 
 ## API Reference
@@ -130,13 +140,11 @@ export const appConfig: ApplicationConfig = {
 Track a page view manually.
 
 ```typescript
-// Track current page
 umami.trackPageView();
 
-// Track with custom data
 umami.trackPageView({
   url: '/custom-page',
-  title: 'Custom Page',
+  title: 'Custom Page Title',
   referrer: 'https://google.com'
 });
 ```
@@ -150,26 +158,32 @@ Track a custom event.
 umami.trackEvent('button_click');
 
 // Event with data (max 50 properties)
-umami.trackEvent('purchase', {
-  product: 'Premium Plan',
-  price: 99.99,
-  currency: 'USD'
+umami.trackEvent('form_submit', {
+  formName: 'contact',
+  fields: 5,
+  hasAttachment: true
 });
 ```
 
 #### `identify(sessionIdOrData, sessionData?)`
 
-Identify a user session.
+Identify user sessions.
 
 ```typescript
-// With ID only
+// With session ID
 umami.identify('user-123');
 
-// With ID and data
-umami.identify('user-123', { plan: 'premium', role: 'admin' });
+// With session ID and data
+umami.identify('user-123', {
+  plan: 'premium',
+  role: 'admin'
+});
 
 // With data only
-umami.identify({ plan: 'premium', role: 'admin' });
+umami.identify({
+  plan: 'premium',
+  signupDate: '2024-01-15'
+});
 ```
 
 #### `isAvailable()`
@@ -184,63 +198,119 @@ if (umami.isAvailable()) {
 
 #### `disable()`
 
-Disable tracking programmatically.
+Disable tracking programmatically. Sets the `umami.disabled` flag in
+localStorage (the mechanism Umami itself honors), so the opt-out persists
+across page loads until the flag is removed.
 
 ```typescript
 umami.disable();
+
+// To re-enable tracking later:
+localStorage.removeItem('umami.disabled');
 ```
 
 ### UmamiTrackDirective
 
-Declarative event tracking in templates:
+Declarative event tracking on DOM elements.
 
 ```html
-<!-- Simple click tracking -->
-<button umamiTrack="signup_click">Sign Up</button>
+<!-- Track click events -->
+<button umamiTrack="signup">Sign Up</button>
 
 <!-- With event data -->
 <button
-  umamiTrack="purchase"
-  [umamiTrackData]="{ product: 'Premium', price: 99 }">
-  Buy Now
+  umamiTrack="download"
+  [umamiTrackData]="{ file: 'report.pdf', size: 1024 }">
+  Download
 </button>
 
-<!-- Track on different events -->
+<!-- Track different events -->
 <input
   umamiTrack="search_focus"
   umamiTrackOn="focus"
   placeholder="Search...">
+
+<form
+  umamiTrack="form_submit"
+  umamiTrackOn="submit">
+  <!-- form fields -->
+</form>
 ```
 
-Supported events: `click`, `focus`, `blur`, `mouseenter`, `mouseleave`, `submit`
+**Supported events:** `click`, `focus`, `blur`, `mouseenter`, `mouseleave`, `submit`
 
-Import the directive:
+### withRouterTracking()
+
+Enable automatic page view tracking on Angular router navigation.
 
 ```typescript
-import { UmamiTrackDirective } from 'ngx-umami';
-
-@Component({
-  imports: [UmamiTrackDirective],
-  // ...
-})
+// app.config.ts
+providers: [
+  provideRouter(routes),
+  provideUmami({
+    websiteId: 'xxx',
+    src: 'https://...',
+    autoTrack: false  // Disable Umami's auto-track since router handles it
+  }),
+  withRouterTracking()
+]
 ```
 
-## SSR Support
+### provideUmamiWithFactory()
 
-ngx-umami is fully compatible with Angular SSR. The library automatically detects server-side rendering and disables tracking to prevent errors.
+Configure Umami using a factory function with dependency injection.
+
+```typescript
+import { provideUmamiWithFactory } from 'ngx-umami';
+import { ConfigService } from './config.service';
+
+providers: [
+  provideUmamiWithFactory(
+    (config: ConfigService) => ({
+      websiteId: config.umamiWebsiteId,
+      src: config.umamiSrc,
+      enabled: config.isProduction
+    }),
+    [ConfigService]
+  )
+]
+```
+
+## Environment-based Configuration
+
+```typescript
+// environments/environment.ts
+export const environment = {
+  production: false,
+  umami: {
+    websiteId: 'dev-website-id',
+    src: 'https://analytics.example.com/script.js',
+    enabled: false  // Disable in development
+  }
+};
+
+// environments/environment.prod.ts
+export const environment = {
+  production: true,
+  umami: {
+    websiteId: 'prod-website-id',
+    src: 'https://analytics.example.com/script.js',
+    enabled: true
+  }
+};
+
+// app.config.ts
+import { environment } from './environments/environment';
+
+providers: [
+  provideUmami(environment.umami)
+]
+```
+
+## SSR Considerations
+
+The library automatically handles server-side rendering. Tracking is only active in the browser environment - no configuration needed.
 
 ## License
 
-ngx-umami is licensed under the MIT License.
-
-You are free to use, modify, and distribute this software in both open-source
-and commercial projects, with proper attribution.
-
-## Disclaimer
-
-ngx-umami is an independent community-driven project.
-
-It is not affiliated with, endorsed by, or maintained by the Umami team or
-its contributors.
-
-"Umami" is a trademark of its respective owners.
+MIT
