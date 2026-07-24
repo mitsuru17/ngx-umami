@@ -4,7 +4,6 @@ Angular library for [Umami Analytics](https://umami.is/) - a privacy-focused, li
 
 [![npm version](https://badge.fury.io/js/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
 [![npm downloads](https://img.shields.io/npm/dm/ngx-umami.svg)](https://www.npmjs.com/package/ngx-umami)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/ngx-umami)](https://bundlephobia.com/package/ngx-umami)
 [![Angular](https://img.shields.io/badge/Angular-17--21-dd0031.svg)](https://angular.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
