@@ -6,6 +6,9 @@
 export type {
   UmamiConfig,
   UmamiEventData,
+  UmamiEventDataValue,
+  UmamiEventPayload,
+  UmamiTrackModifier,
   UmamiPageViewPayload,
   UmamiIdentifyData,
   UmamiTracker,

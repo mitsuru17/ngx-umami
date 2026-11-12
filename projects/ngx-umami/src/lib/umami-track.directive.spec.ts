@@ -64,7 +64,8 @@ describe('UmamiTrackDirective', () => {
     const button = fixture.nativeElement.querySelector('#dataBtn');
     button.click();
 
-    expect(mockUmamiService.trackEvent).toHaveBeenCalledWith('data_click', {
+    // Cast: jasmine's matcher typing overflows on the recursive UmamiEventData type
+    expect(mockUmamiService.trackEvent as jasmine.Spy).toHaveBeenCalledWith('data_click', {
       category: 'test',
       value: 42,
     });

@@ -6,6 +6,7 @@ import {
   UmamiPageViewPayload,
   UmamiIdentifyData,
   UmamiTracker,
+  UmamiTrackModifier,
 } from './umami.types';
 
 /**
@@ -181,6 +182,26 @@ export class UmamiService implements OnDestroy {
       this.scriptElement.dataset['hostUrl'] = this.config.hostUrl;
     }
 
+    if (this.config.autoPageview === false) {
+      this.scriptElement.dataset['autoPageview'] = 'false';
+    }
+
+    if (this.config.distinctId) {
+      this.scriptElement.dataset['distinctId'] = this.config.distinctId;
+    }
+
+    if (this.config.performance) {
+      this.scriptElement.dataset['performance'] = 'true';
+    }
+
+    if (this.config.beforeSend) {
+      this.scriptElement.dataset['beforeSend'] = this.config.beforeSend;
+    }
+
+    if (this.config.fetchCredentials) {
+      this.scriptElement.dataset['fetchCredentials'] = this.config.fetchCredentials;
+    }
+
     this.scriptElement.onload = () => {
       this.scriptLoaded = true;
       this.flushQueue();
@@ -236,7 +257,8 @@ export class UmamiService implements OnDestroy {
   /**
    * Track a page view
    *
-   * @param payload Optional page view data (url, title, referrer)
+   * @param payload Optional page view data, or a callback that receives the
+   * default properties and returns the payload to send
    *
    * @example
    * ```typescript
@@ -245,9 +267,14 @@ export class UmamiService implements OnDestroy {
    *
    * // Track with custom URL
    * umami.trackPageView({ url: '/custom-page', title: 'Custom Page' });
+   *
+   * // Modify the default properties
+   * umami.trackPageView(props => ({ ...props, url: '/custom-page' }));
    * ```
    */
-  trackPageView(payload?: UmamiPageViewPayload): void {
+  trackPageView(payload?: UmamiPageViewPayload): void;
+  trackPageView(modifier: UmamiTrackModifier): void;
+  trackPageView(payload?: UmamiPageViewPayload | UmamiTrackModifier): void {
     if (!this.initialized) {
       return;
     }
@@ -255,7 +282,9 @@ export class UmamiService implements OnDestroy {
     this.enqueueOrRun(() => {
       const tracker = this.getTracker();
       if (!tracker) return;
-      if (payload) {
+      if (typeof payload === 'function') {
+        tracker.track(payload);
+      } else if (payload) {
         tracker.track(payload);
       } else {
         tracker.track();

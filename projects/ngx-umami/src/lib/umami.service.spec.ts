@@ -378,6 +378,64 @@ describe('UmamiService', () => {
       ) as HTMLScriptElement;
       expect(script?.dataset['hostUrl']).toBe('https://proxy.example.com');
     });
+
+    it('should set autoPageview to false when configured', () => {
+      service = createService({ autoPageview: false });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['autoPageview']).toBe('false');
+    });
+
+    it('should set distinctId attribute when configured', () => {
+      service = createService({ distinctId: 'visitor-1' });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['distinctId']).toBe('visitor-1');
+    });
+
+    it('should set performance attribute when configured', () => {
+      service = createService({ performance: true });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['performance']).toBe('true');
+    });
+
+    it('should set beforeSend attribute when configured', () => {
+      service = createService({ beforeSend: 'umamiBeforeSend' });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['beforeSend']).toBe('umamiBeforeSend');
+    });
+
+    it('should set fetchCredentials attribute when configured', () => {
+      service = createService({ fetchCredentials: 'include' });
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['fetchCredentials']).toBe('include');
+    });
+
+    it('should not set the new attributes by default', () => {
+      service = createService({});
+
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      expect(script?.dataset['autoPageview']).toBeUndefined();
+      expect(script?.dataset['distinctId']).toBeUndefined();
+      expect(script?.dataset['performance']).toBeUndefined();
+      expect(script?.dataset['beforeSend']).toBeUndefined();
+      expect(script?.dataset['fetchCredentials']).toBeUndefined();
+    });
   });
 
   describe('isAvailable', () => {
@@ -612,6 +670,23 @@ describe('UmamiService', () => {
     it('should call tracker.track(payload) for trackPageView with payload', () => {
       service.trackPageView({ url: '/test', title: 'Test' });
       expect(mockTracker.track).toHaveBeenCalledWith({ url: '/test', title: 'Test' });
+    });
+
+    it('should call tracker.track(callback) for trackPageView with a modifier', () => {
+      const modifier = (props: { url?: string }) => ({ ...props, url: '/custom' });
+      service.trackPageView(modifier);
+      expect(mockTracker.track).toHaveBeenCalledWith(modifier);
+    });
+
+    it('should pass the website field through trackPageView', () => {
+      service.trackPageView({ website: 'other-site', url: '/x' });
+      expect(mockTracker.track).toHaveBeenCalledWith({ website: 'other-site', url: '/x' });
+    });
+
+    it('should accept nested event data in trackEvent', () => {
+      const data = { items: ['a', 'b'], meta: { source: 'cart', total: null } };
+      service.trackEvent('checkout', data);
+      expect(mockTracker.track).toHaveBeenCalledWith('checkout', data);
     });
 
     it('should call tracker.track(eventName) for trackEvent without data', () => {

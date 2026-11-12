@@ -124,6 +124,11 @@ provideUmami({
   excludeSearch: false,       // Exclude URL search params
   excludeHash: false,         // Exclude URL hash
   hostUrl: 'https://proxy.example.com',  // Custom data endpoint
+  autoPageview: true,         // Auto page views while keeping the tracker active (Umami v3.2+)
+  distinctId: 'visitor-1',    // Distinct ID set on load, max 50 chars (Umami v3.4+)
+  performance: false,         // Collect Core Web Vitals (Umami v3.1+)
+  beforeSend: 'myBeforeSend', // Name of a global function run before each send (Umami v2.18+)
+  fetchCredentials: 'omit',   // 'omit' | 'same-origin' | 'include'
   onScriptError: (src) => {   // Called if the tracker script fails to load
     console.warn(`Umami failed to load from ${src}`);
   }
@@ -146,7 +151,14 @@ umami.trackPageView({
   title: 'Custom Page Title',
   referrer: 'https://google.com'
 });
+
+// Modify the default properties
+umami.trackPageView(props => ({ ...props, url: '/custom-page' }));
 ```
+
+> **`beforeSend`:** the named function must exist on `window` *before* the tracker
+> script loads. It receives `(type, payload)`; return the (modified) payload to
+> send, or a falsy value to cancel.
 
 #### `trackEvent(eventName, eventData?)`
 
@@ -160,9 +172,15 @@ umami.trackEvent('button_click');
 umami.trackEvent('form_submit', {
   formName: 'contact',
   fields: 5,
-  hasAttachment: true
+  hasAttachment: true,
+  tags: ['a', 'b'],              // arrays and nested objects are supported
+  meta: { source: 'footer' }
 });
 ```
+
+Umami limits: event names are truncated past 50 characters, strings (and
+stringified arrays) to 500, numbers keep 4 decimals, and objects hold up to 50
+properties.
 
 #### `identify(sessionIdOrData, sessionData?)`
 
@@ -254,6 +272,11 @@ providers: [
   withRouterTracking()
 ]
 ```
+
+> **Note:** `autoTrack: false` sets `data-auto-track="false"`, which in Umami v3
+> turns off the whole tracker initialization (including `data-umami-event`
+> attributes), not just page views. On Umami v3.2+ you can use
+> `autoPageview: false` instead to stop only the automatic page views.
 
 ### provideUmamiWithFactory()
 
