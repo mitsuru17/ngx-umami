@@ -540,7 +540,12 @@ describe('UmamiService', () => {
       ) as HTMLScriptElement;
       script.onload?.(new Event('load'));
 
-      expect(mockTracker.track).toHaveBeenCalledWith({ url: '/queued-page' });
+      expect(mockTracker.track).toHaveBeenCalledWith(jasmine.any(Function));
+      const modifier = mockTracker.track.calls.mostRecent().args[0];
+      expect(modifier({ website: 'test-website-id', url: '/' })).toEqual({
+        website: 'test-website-id',
+        url: '/queued-page',
+      });
     });
 
     it('should queue identify calls made before script loads and flush on load', () => {
@@ -667,9 +672,15 @@ describe('UmamiService', () => {
       expect(mockTracker.track).toHaveBeenCalledWith();
     });
 
-    it('should call tracker.track(payload) for trackPageView with payload', () => {
+    it('should merge a trackPageView payload over the tracker defaults', () => {
       service.trackPageView({ url: '/test', title: 'Test' });
-      expect(mockTracker.track).toHaveBeenCalledWith({ url: '/test', title: 'Test' });
+      expect(mockTracker.track).toHaveBeenCalledWith(jasmine.any(Function));
+      const modifier = mockTracker.track.calls.mostRecent().args[0];
+      expect(modifier({ website: 'test-website-id', url: '/', title: 'Home' })).toEqual({
+        website: 'test-website-id',
+        url: '/test',
+        title: 'Test',
+      });
     });
 
     it('should call tracker.track(callback) for trackPageView with a modifier', () => {
@@ -680,7 +691,11 @@ describe('UmamiService', () => {
 
     it('should pass the website field through trackPageView', () => {
       service.trackPageView({ website: 'other-site', url: '/x' });
-      expect(mockTracker.track).toHaveBeenCalledWith({ website: 'other-site', url: '/x' });
+      const modifier = mockTracker.track.calls.mostRecent().args[0];
+      expect(modifier({ website: 'test-website-id', url: '/' })).toEqual({
+        website: 'other-site',
+        url: '/x',
+      });
     });
 
     it('should accept nested event data in trackEvent', () => {
@@ -770,6 +785,68 @@ describe('UmamiService', () => {
       service.ngOnDestroy();
 
       expect(localStorage.getItem('umami.disabled')).toBeNull();
+    });
+  });
+  describe('trackPageView with the real tracker semantics', () => {
+    // Mirrors Umami's tracker: track(object) sends the object as-is, while
+    // track(fn) and track() build on the default payload (which has `website`)
+    const defaults = {
+      website: 'test-website-id',
+      hostname: 'example.com',
+      url: '/current',
+      referrer: '/previous',
+      title: 'Current page',
+    };
+    let sent: Record<string, unknown>[];
+
+    beforeEach(() => {
+      sent = [];
+      const send = (payload: Record<string, unknown>) => {
+        sent.push(payload);
+        return Promise.resolve();
+      };
+      (window as { umami?: unknown }).umami = {
+        track: (name?: unknown, data?: unknown) => {
+          if (typeof name === 'string') return send({ ...defaults, name, data });
+          if (typeof name === 'object') return send({ ...(name as object) });
+          if (typeof name === 'function') return send(name({ ...defaults }));
+          return send({ ...defaults });
+        },
+        identify: () => Promise.resolve(),
+      };
+      service = createService({});
+      const script = document.querySelector(
+        'script[data-website-id="test-website-id"]'
+      ) as HTMLScriptElement;
+      script.onload?.(new Event('load'));
+    });
+
+    afterEach(() => {
+      delete (window as { umami?: unknown }).umami;
+    });
+
+    it('should keep the website ID and defaults when a payload object is passed', () => {
+      service.trackPageView({ url: '/custom', title: 'Custom' });
+
+      expect(sent).toEqual([{ ...defaults, url: '/custom', title: 'Custom' }]);
+    });
+
+    it('should send the defaults when called without payload', () => {
+      service.trackPageView();
+
+      expect(sent).toEqual([defaults]);
+    });
+
+    it('should let the payload override the website ID explicitly', () => {
+      service.trackPageView({ website: 'other-website-id', url: '/x' });
+
+      expect(sent[0]['website']).toBe('other-website-id');
+    });
+
+    it('should pass callbacks through unchanged', () => {
+      service.trackPageView((props) => ({ ...props, url: '/from-callback' }));
+
+      expect(sent).toEqual([{ ...defaults, url: '/from-callback' }]);
     });
   });
 });

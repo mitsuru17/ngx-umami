@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-17
+
+### Fixed
+
+- **`withRouterTracking()` page views were rejected by Umami.** Umami's
+  `umami.track(object)` sends the object as-is, without the default properties,
+  and the collect API returns 400 when `website` is missing. The router tracker
+  sent `{ url }` only, so no route change was recorded. `trackPageView(payload)`
+  now merges the payload over the tracker defaults (`website`, `hostname`,
+  `referrer`, `title`, ...) through the callback form, which fixes both the
+  router tracker and manual calls such as `trackPageView({ url, title })`.
+- `withRouterTracking()` now applies `excludeSearch` / `excludeHash` to the
+  route URL. The tracker only normalizes URLs it reads from `history`.
+
+### Documentation
+
+- `withRouterTracking()`: recommend `autoPageview: false` (Umami v3.2+) to avoid
+  double counting, instead of `autoTrack: false`, which disables the whole
+  tracker in Umami v3 and freezes the referrer between routes.
+- README: minimum Umami version table, Content Security Policy note, and the
+  difference between `umamiTrack` and Umami's `data-umami-event` attributes.
+
 ## [1.4.0] - 2026-11-11
 
 ### Added
@@ -103,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UmamiTrackDirective`, `withRouterTracking()`, `injectUmami()`, SSR-safe
   browser checks, script URL validation, Do Not Track and domain restrictions.
 
+[1.4.1]: https://github.com/mitsuru17/ngx-umami/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/mitsuru17/ngx-umami/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mitsuru17/ngx-umami/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/mitsuru17/ngx-umami/compare/v1.0.0...v1.2.0

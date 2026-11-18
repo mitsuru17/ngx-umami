@@ -123,3 +123,56 @@ describe('withRouterTracking', () => {
     expect(mockUmamiService.trackPageView).toHaveBeenCalledWith({ url: '/about' });
   }));
 });
+
+describe('UmamiRouterTracker URL normalization', () => {
+  let mockUmamiService: jasmine.SpyObj<UmamiService>;
+
+  function setup(config: { excludeSearch?: boolean; excludeHash?: boolean }) {
+    mockUmamiService = jasmine.createSpyObj('UmamiService', ['trackPageView']);
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(routes),
+        UmamiRouterTracker,
+        { provide: UmamiService, useValue: mockUmamiService },
+        {
+          provide: UMAMI_CONFIG,
+          useValue: { websiteId: 'test', src: 'https://test.example.com/script.js', ...config },
+        },
+      ],
+    });
+    TestBed.inject(UmamiRouterTracker).init();
+    return TestBed.inject(Router);
+  }
+
+  it('should keep search and hash by default', fakeAsync(() => {
+    const router = setup({});
+    router.navigateByUrl('/about?ref=x#top');
+    tick();
+
+    expect(mockUmamiService.trackPageView).toHaveBeenCalledWith({ url: '/about?ref=x#top' });
+  }));
+
+  it('should strip the query string when excludeSearch is set', fakeAsync(() => {
+    const router = setup({ excludeSearch: true });
+    router.navigateByUrl('/about?ref=x#top');
+    tick();
+
+    expect(mockUmamiService.trackPageView).toHaveBeenCalledWith({ url: '/about#top' });
+  }));
+
+  it('should strip the hash when excludeHash is set', fakeAsync(() => {
+    const router = setup({ excludeHash: true });
+    router.navigateByUrl('/about?ref=x#top');
+    tick();
+
+    expect(mockUmamiService.trackPageView).toHaveBeenCalledWith({ url: '/about?ref=x' });
+  }));
+
+  it('should strip both when excludeSearch and excludeHash are set', fakeAsync(() => {
+    const router = setup({ excludeSearch: true, excludeHash: true });
+    router.navigateByUrl('/about?ref=x#top');
+    tick();
+
+    expect(mockUmamiService.trackPageView).toHaveBeenCalledWith({ url: '/about' });
+  }));
+});

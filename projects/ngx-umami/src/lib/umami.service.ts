@@ -258,7 +258,9 @@ export class UmamiService implements OnDestroy {
    * Track a page view
    *
    * @param payload Optional page view data, or a callback that receives the
-   * default properties and returns the payload to send
+   * default properties and returns the payload to send. A payload object is
+   * merged over the default properties (`website`, `hostname`, `url`,
+   * `referrer`, `title`, ...), so you only need to pass what you override.
    *
    * @example
    * ```typescript
@@ -285,7 +287,10 @@ export class UmamiService implements OnDestroy {
       if (typeof payload === 'function') {
         tracker.track(payload);
       } else if (payload) {
-        tracker.track(payload);
+        // umami.track(object) sends the object as-is, without the defaults
+        // (website, hostname, ...), and Umami rejects payloads missing
+        // `website`. Merge over the defaults through the callback form.
+        tracker.track((props) => ({ ...props, ...payload }));
       } else {
         tracker.track();
       }

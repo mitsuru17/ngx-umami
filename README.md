@@ -156,6 +156,10 @@ umami.trackPageView({
 umami.trackPageView(props => ({ ...props, url: '/custom-page' }));
 ```
 
+A payload object is merged over the tracker's default properties (`website`,
+`hostname`, `url`, `referrer`, `title`, ...), so you only pass what you want to
+override.
+
 > **`beforeSend`:** the named function must exist on `window` *before* the tracker
 > script loads. It receives `(type, payload)`; return the (modified) payload to
 > send, or a falsy value to cancel.
@@ -256,6 +260,14 @@ Declarative event tracking on DOM elements.
 
 **Supported events:** `click`, `focus`, `blur`, `mouseenter`, `mouseleave`, `submit`
 
+> **`umamiTrack` vs Umami's `data-umami-event`:** Umami's script also tracks
+> clicks on elements with `data-umami-event="name"` and
+> `data-umami-event-<key>="value"` attributes, but those values are always
+> strings and only clicks are supported. `umamiTrack` sends typed data
+> (numbers, booleans, nested objects) on any of the events above. Both can
+> coexist; `data-umami-event` needs the tracker initialized (`autoTrack` not
+> set to `false`).
+
 ### withRouterTracking()
 
 Enable automatic page view tracking on Angular router navigation.
@@ -267,16 +279,22 @@ providers: [
   provideUmami({
     websiteId: 'xxx',
     src: 'https://...',
-    autoTrack: false  // Disable Umami's auto-track since router handles it
+    autoPageview: false  // The router sends the page views (Umami v3.2+)
   }),
   withRouterTracking()
 ]
 ```
 
-> **Note:** `autoTrack: false` sets `data-auto-track="false"`, which in Umami v3
-> turns off the whole tracker initialization (including `data-umami-event`
-> attributes), not just page views. On Umami v3.2+ you can use
-> `autoPageview: false` instead to stop only the automatic page views.
+> **Avoid double counting:** Umami already tracks `history.pushState`
+> navigations by itself, so with `withRouterTracking()` set
+> `autoPageview: false` (Umami v3.2+); otherwise each navigation is counted twice.
+>
+> Prefer it over `autoTrack: false`: that sets `data-auto-track="false"`, which
+> in Umami v3 turns off the whole tracker initialization (including
+> `data-umami-event` attributes and referrer updates between routes), not just
+> page views. Use `autoTrack: false` only on Umami versions older than v3.2.
+>
+> `excludeSearch` and `excludeHash` are applied to the tracked route URL.
 
 ### provideUmamiWithFactory()
 
@@ -328,6 +346,32 @@ providers: [
   provideUmami(environment.umami)
 ]
 ```
+
+## Umami Version Requirements
+
+Most options work with any recent Umami version. These need a minimum version
+of your Umami instance (older versions ignore them):
+
+| Option / feature              | Minimum Umami version |
+|-------------------------------|-----------------------|
+| `beforeSend`                  | v2.18.0               |
+| `performance`                 | v3.1.0                |
+| `autoPageview`                | v3.2.0                |
+| `distinctId`                  | v3.4.0                |
+
+## Content Security Policy
+
+If your app sends a Content Security Policy, allow the Umami host for both the
+script and the data requests:
+
+```
+Content-Security-Policy:
+  script-src 'self' https://analytics.example.com;
+  connect-src 'self' https://analytics.example.com;
+```
+
+If you set `hostUrl` to a different endpoint (for example a proxy), add that
+origin to `connect-src` as well.
 
 ## SSR Considerations
 
