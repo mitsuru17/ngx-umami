@@ -34,3 +34,5 @@ CLAUDE.md
 
 # Docs (internal)
 docs/
+# CodeGraph index
+.codegraph/
